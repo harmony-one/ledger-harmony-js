@@ -26,11 +26,11 @@
       Show Address
     </button>
 
-    <button @click="signExampleTx">
+    <button @click="signTx">
       Sign Example TX
     </button>
 
-    <button @click="signExampleTx">
+    <button @click="signStake">
       Sign Example StakeTx
     </button>
     <!--
@@ -134,7 +134,7 @@ export default {
             this.log('Harmony one address for ledger is:');
             this.log(response.one_address);
         },
-        async signExampleTx() {
+        async signTx() {
             this.deviceLog = [];
 
             // Given a transport (U2F/HIF/WebUSB) it is possible instantiate the app
@@ -142,11 +142,29 @@ export default {
             const app = new HarmonyApp(transport);
 
             const message = 'e608808252080180940c807574be624ccdff7a7dd64c7add4dc92dd0a9880de0b6b3a764000080';
-            const response = await app.sign(message);
+            const response = await app.signTx(message);
 
             this.log('Response received!');
             this.log('Full response:');
-            this.log(response);
+            this.log(response.signature.toString('hex'));
+        },
+        async signStake() {
+          this.deviceLog = [];
+
+          // Given a transport (U2F/HIF/WebUSB) it is possible instantiate the app
+          const transport = await this.getTransport();
+          const app = new HarmonyApp(transport);
+
+          // raw staking packet generated from go-CLI
+          ///hmy staking delegate --delegator one1q6gkzcap0uruuu8r6sldxuu47pd4ww9w9t7tg6  --validator one15l3pj0v9a8gfkdatd5hpj029kvc4mlr6r5djmg --gas-price 2  --amount 12345 --passphrase "harmony-one" --ledger
+          //0xf88302f59406916163a17f07ce70e3d43ed37395f05b5738ae94a7e2193d85e9d09b37ab6d2e193d45b3315dfc7a8a029d394a5d630544000080847735940082520827a0bd1c87895752a5bdad237931d36182bb50413fb645999c58e17f011537ffa9caa04723f2f0828516e73ab6da08790afc3516220fb181df460e64681f1fd6acc7df
+
+          const message = 'f88302f59406916163a17f07ce70e3d43ed37395f05b5738ae94a7e2193d85e9d09b37ab6d2e193d45b3315dfc7a8a029d394a5d630544000080847735940082520827a0bd1c87895752a5bdad237931d36182bb50413fb645999c58e17f011537ffa9caa04723f2f0828516e73ab6da08790afc3516220fb181df460e64681f1fd6acc7df';
+          const response = await app.signStake(message);
+
+          this.log('Response received!');
+          this.log('Full response:');
+          this.log(response.signature.toString('hex'));
         },
     },
 };

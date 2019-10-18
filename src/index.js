@@ -97,20 +97,12 @@ export default class HarmonyApp {
 
     async signTx(message) {
         const p = hexToBytes(message);
-        return this.transport.send(CLA, INS.SIGN_TX, 0, 0, p)
+        return this.transport.send(CLA, INS.SIGN_TX, 0, 0, Buffer.from(p))
             .then(
                 async (response) => {
-                    const result = {
-                        return_code: response.return_code,
-                        error_message: response.error_message,
-                        signature: null,
-                    };
-
+                    const sig = Buffer.from(response.slice(0, 65));
                     return {
-                        return_code: result.return_code,
-                        error_message: result.error_message,
-                        // ///
-                        signature: result.signature,
+                        signature: sig,
                     };
                 },
                 processErrorResponse,
@@ -119,21 +111,12 @@ export default class HarmonyApp {
 
     async signStake(message) {
         const p = hexToBytes(message);
-        return this.transport.send(CLA, INS.SIGN_STAKING, 0, 0, p)
+        return this.transport.send(CLA, INS.SIGN_STAKING, 0, 0, Buffer.from(p))
             .then(
                 async (response) => {
-                    const result = {
-                        return_code: response.return_code,
-                        error_message: response.error_message,
-                        signature: null,
-                    };
-
-
+                    const sig = Buffer.from(response.slice(0, 65));
                     return {
-                        return_code: result.return_code,
-                        error_message: result.error_message,
-                        // ///
-                        signature: result.signature,
+                        signature: sig,
                     };
                 },
                 processErrorResponse,
