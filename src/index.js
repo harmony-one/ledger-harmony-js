@@ -59,67 +59,68 @@ export default class HarmonyApp {
     }
 
     async getVersion() {
-        return this.transport.send(CLA, INS.GET_VERSION, 0, 0)
-            .then(
-                (response) => {
-                    const errorCodeData = response.slice(-2);
-                    const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
-                    console.log('get version response is');
-                    console.log(response);
-                    return {
-                        return_code: returnCode,
-                        // ///
-                        test_mode: false,
-                        major: response[0],
-                        minor: response[1],
-                        patch: response[2],
-                    };
-                },
-                processErrorResponse,
-            );
+        let resp;
+        try {
+            resp = await this.transport.send(CLA, INS.GET_VERSION, 0, 0);
+        } catch (err) {
+            processErrorResponse(resp);
+        }
+        const errorCodeData = resp.slice(-2);
+        const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
+        return {
+            return_code: returnCode,
+            // ///
+            test_mode: false,
+            major: resp[0],
+            minor: resp[1],
+            patch: resp[2],
+        };
     }
 
     async publicKey() {
-        return this.transport.send(CLA, INS.GET_PUBLIC_KEY, 0, 1)
-            .then(
-                (response) => {
-                    const errorCodeData = response.slice(-2);
-                    const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
-                    const pk = Buffer.from(response.slice(0, 42));
-                    return {
-                        one_address: pk,
-                        return_code: returnCode,
-                    };
-                },
-                processErrorResponse,
-            );
+        let resp;
+        try {
+            resp = await this.transport.send(CLA, INS.GET_PUBLIC_KEY, 0, 1);
+        } catch (err) {
+            processErrorResponse(resp);
+        }
+        const errorCodeData = resp.slice(-2);
+        const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
+        return {
+            one_address: Buffer.from(resp.slice(0, 42)),
+            return_code: returnCode,
+        };
     }
 
     async signTx(message) {
+        let resp;
         const p = hexToBytes(message);
-        return this.transport.send(CLA, INS.SIGN_TX, 0, 0, Buffer.from(p))
-            .then(
-                async (response) => {
-                    const sig = Buffer.from(response.slice(0, 65));
-                    return {
-                        signature: sig,
-                    };
-                },
-                processErrorResponse,
-            );
+        try {
+            resp = await this.transport.send(CLA, INS.SIGN_TX, 0, 0, Buffer.from(p));
+        } catch (err) {
+            processErrorResponse(resp);
+        }
+        const errorCodeData = resp.slice(-2);
+        const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
+        return {
+            signature: Buffer.from(resp.slice(0, 65)),
+            return_code: returnCode,
+        };
     }
 
     async signStake(message) {
+        let resp;
         const p = hexToBytes(message);
-        return this.transport.send(CLA, INS.SIGN_STAKING, 0, 0, Buffer.from(p))
-            .then(
-                async (response) => {
-                    const sig = Buffer.from(response.slice(0, 65));
-                    return {
-                        signature: sig,
-                    };
-                },
-                processErrorResponse,
-            );
+        try {
+            resp = await this.transport.send(CLA, INS.SIGN_STAKING, 0, 0, Buffer.from(p));
+        } catch (err) {
+            processErrorResponse(resp);
+        }
+        const errorCodeData = resp.slice(-2);
+        const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
+        return {
+            signature: Buffer.from(resp.slice(0, 65)),
+            return_code: returnCode,
+        };
     }
 }
