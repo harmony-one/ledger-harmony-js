@@ -18,13 +18,21 @@ SOFTWARE.
  */
 
 const CLA = 0xE0;
-
+const CHUNK_SIZE = 255;
 const INS = {
     GET_VERSION: 0x01,
     GET_PUBLIC_KEY: 0x02,
     SIGN_STAKING: 0x04,
     SIGN_TX: 0x08,
 };
+
+const CMDS = {
+    P1_FIRST: 0x0,
+    P1_MORE: 0x80,
+    P2_SIGNHASH: 0x01,
+    P2_FINISH: 0x02,
+};
+
 
 function hexToBytes(hex) {
     const bytes = [];
@@ -109,10 +117,25 @@ export default class HarmonyApp {
     }
 
     async signStake(message) {
-        let resp;
+        let resp = null;
         const p = hexToBytes(message);
+        const buffer = Buffer.from(p);
+        const chunks = [];
+        for (let i = 0; i < buffer.length; i += CHUNK_SIZE) {
+            let end = i + CHUNK_SIZE;
+            if (i > buffer.length) {
+                end = buffer.length;
+            }
+            chunks.push(buffer.slice(i, end));
+        }
+
         try {
-            resp = await this.transport.send(CLA, INS.SIGN_STAKING, 0, 0, Buffer.from(p));
+            for (let i = 0; i < chunks.length; i += 1) {
+                const p1 = (i === 0) ? CMDS.P1_FIRST : CMDS.P1_MORE;
+                const p2 = (i === chunks.length - 1) ? CMDS.P2_FINISH : CMDS.P2_SIGNHASH;
+                // eslint-disable-next-line
+                resp = await this.transport.send(CLA, INS.SIGN_STAKING, p1, p2, chunks[i]);
+            }
         } catch (err) {
             processErrorResponse(resp);
         }

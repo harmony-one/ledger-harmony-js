@@ -149,22 +149,23 @@ export default {
             this.log(response.signature.toString('hex'));
         },
         async signStake() {
-          this.deviceLog = [];
+            this.deviceLog = [];
 
-          // Given a transport (U2F/HIF/WebUSB) it is possible instantiate the app
-          const transport = await this.getTransport();
-          const app = new HarmonyApp(transport);
+            // Given a transport (U2F/HIF/WebUSB) it is possible instantiate the app
+            const transport = await this.getTransport();
+            const app = new HarmonyApp(transport);
 
-          // raw staking packet generated from go-CLI
-          ///hmy staking delegate --delegator one1q6gkzcap0uruuu8r6sldxuu47pd4ww9w9t7tg6  --validator one15l3pj0v9a8gfkdatd5hpj029kvc4mlr6r5djmg --gas-price 2  --amount 12345 --passphrase "harmony-one" --ledger
-          //0xf88302f59406916163a17f07ce70e3d43ed37395f05b5738ae94a7e2193d85e9d09b37ab6d2e193d45b3315dfc7a8a029d394a5d630544000080847735940082520827a0bd1c87895752a5bdad237931d36182bb50413fb645999c58e17f011537ffa9caa04723f2f0828516e73ab6da08790afc3516220fb181df460e64681f1fd6acc7df
+            // raw staking packet generated from go-CLI
+            // ./hmy staking delegate --delegator one1q6gkzcap0uruuu8r6sldxuu47pd4ww9w9t7tg6 \
+            // --validator one15l3pj0v9a8gfkdatd5hpj029kvc4mlr6r5djmg \
+            // --gas-price 2  --amount 12345 --passphrase "harmony-one" --ledger \
 
-          const message = 'f88302f59406916163a17f07ce70e3d43ed37395f05b5738ae94a7e2193d85e9d09b37ab6d2e193d45b3315dfc7a8a029d394a5d630544000080847735940082520827a0bd1c87895752a5bdad237931d36182bb50413fb645999c58e17f011537ffa9caa04723f2f0828516e73ab6da08790afc3516220fb181df460e64681f1fd6acc7df';
-          const response = await app.signStake(message);
-
-          this.log('Response received!');
-          this.log('Full response:');
-          this.log(response.signature.toString('hex'));
+            const message = 'f9017580f901649406916163a17f07ce70e3d43ed37395f05b5738aef87d966861726d6f6e79207374616b696e67206c6564676572907374616b696e67206964656e746974798b6861726d6f6e792e6f6e65b840636f6e746163742020206173646661736473646661207364662061736466617364667361646673616466617364666173646661736466736466736466617364668664657461696cdcc8872bb2c8eabcc000c988b37ecc7904e70000c887b1a2bc2ec50000894136fa8e3b9aec000089bb59a27953c6000000f893b05eb1eec590b2a763da7454b49c13e331b41816853d1b70a7868989dbdf63b450339983cd3020c974f4fc23e2a4475116b05eb1eec590b2a763da7454b49c13e331b41816853d1b70a7868989dbdf63b450339983cd3020c974f4fc23e2a4475116b05eb1eec590b2a763da7454b49c13e331b41816853d1b70a7868989dbdf63b450339983cd3020c974f4fc23e2a44751168942e530adfce0080000808504a817c800825208028080';
+            this.log('Start signing');
+            const response = await app.signStake(message);
+            this.log('Response received!');
+            this.log('Full response:');
+            this.log(response.signature.toString('hex'));
         },
     },
 };
