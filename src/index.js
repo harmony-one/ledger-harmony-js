@@ -16,6 +16,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
+const { hexToNumber } = require('@harmony-js/utils');
 
 const CLA = 0xE0;
 const CHUNK_SIZE = 255;
@@ -37,7 +38,9 @@ const CMDS = {
 function hexToBytes(hex) {
     const bytes = [];
     for (let c = 0; c < hex.length; c += 2) {
-        bytes.push(parseInt(hex.substr(c, 2), 16));
+        if (hex.substr(c, 2) !== '0x') {
+            bytes.push(parseInt(hex.substr(c, 2), 16));
+        }
     }
     return bytes;
 }
@@ -85,10 +88,14 @@ export default class HarmonyApp {
         };
     }
 
-    async publicKey() {
+    async publicKey(silentMode) {
         let resp;
         try {
-            resp = await this.transport.send(CLA, INS.GET_PUBLIC_KEY, 0, 1);
+            if (silentMode) {
+                resp = await this.transport.send(CLA, INS.GET_PUBLIC_KEY, 0, 1);
+            } else {
+                resp = await this.transport.send(CLA, INS.GET_PUBLIC_KEY, 0, 0);
+            }
         } catch (err) {
             processErrorResponse(resp);
         }
@@ -145,5 +152,19 @@ export default class HarmonyApp {
             signature: Buffer.from(resp.slice(0, 65)),
             return_code: returnCode,
         };
+    }
+
+    static async getAccountShardNonce(address, shardID, messenger) {
+        const nonce = await messenger.send(
+            'hmy_getTransactionCount',
+            [address, 'latest'],
+            messenger.chainPrefix,
+            shardID,
+        );
+
+        if (nonce.isError()) {
+            throw nonce.error.message;
+        }
+        return Number.parseInt(hexToNumber(nonce.result), 10);
     }
 }

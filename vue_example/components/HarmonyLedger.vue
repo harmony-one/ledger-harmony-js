@@ -52,7 +52,30 @@
 import TransportWebUSB from '@ledgerhq/hw-transport-webusb';
 // eslint-disable-next-line import/no-extraneous-dependencies
 import TransportU2F from '@ledgerhq/hw-transport-u2f';
+import {
+    arrayify, hexlify, stripZeros, encode,
+} from '@harmony-js/crypto';
 import HarmonyApp from '../../src';
+
+const { Harmony } = require('@harmony-js/core');
+
+// import or require settings
+const { ChainID, ChainType } = require('@harmony-js/utils');
+
+const URL_TESTNET = 'https://api.s0.b.hmny.io';
+// const URL_MAINNET = 'https://api.s0.t.hmny.io';
+
+const harmony = new Harmony(
+    // rpc url
+    URL_TESTNET,
+    {
+        // chainType set to Harmony
+        chainType: ChainType.Harmony,
+        // chainType set to HmyLocal
+        chainId: ChainID.HmyTestnet,
+    },
+);
+
 
 export default {
     name: 'HarmonyLedger',
@@ -125,14 +148,14 @@ export default {
             const app = new HarmonyApp(transport);
 
             // now it is possible to access all commands in the app
-            const response = await app.publicKey();
+            const response = await app.publicKey(false);
             if (response.return_code !== 0x9000) {
                 this.log(`Error [${response.return_code}] ${response.error_message}`);
                 return;
             }
-
+            const address = response.one_address.toString();
             this.log('Harmony one address for ledger is:');
-            this.log(response.one_address);
+            this.log(address);
         },
         async signTx() {
             this.deviceLog = [];
@@ -140,13 +163,114 @@ export default {
             // Given a transport (U2F/HIF/WebUSB) it is possible instantiate the app
             const transport = await this.getTransport();
             const app = new HarmonyApp(transport);
+            let response = await app.publicKey(true);
+            if (response.return_code !== 0x9000) {
+                this.log(`Error [${response.return_code}] ${response.error_message}`);
+                return;
+            }
+            this.log('Harmony one address for ledger is:');
+            this.log(response.one_address.toString());
+            const accountNonce = await HarmonyApp.getAccountShardNonce(
+                response.one_address.toString(), 0, harmony.messenger,
+            );
+            const txn = harmony.transactions.newTx({
+                //  token send to
+                to: 'one1sl6hku7wxgxnhajrc0a96p6zpea6qr0p0sqajk',
+                nonce: accountNonce,
+                // amount to send
+                value: '100000000000000000',
+                // gas limit, you can use string
+                gasLimit: '210000',
+                shardID: 0,
+                toShardID: 1,
+                gasPrice: new harmony.utils.Unit('100').asGwei().toWei(),
+            });
 
-            const message = 'e608808252080180940c807574be624ccdff7a7dd64c7add4dc92dd0a9880de0b6b3a764000080';
-            const response = await app.signTx(message);
+            const [unsignedRawTransaction, raw] = txn.getRLPUnsigned();
+            console.log(unsignedRawTransaction);
+            response = await app.signTx(unsignedRawTransaction);
+            console.log('signature = ', response.signature.toString('hex'));
+            const bytes = response.signature;
+            const r = hexlify(bytes.slice(0, 32));
+            const s = hexlify(bytes.slice(32, 64));
+            let v = bytes[64];
+            if (v !== 27 && v !== 28) {
+                v = 27 + (v % 2);
+            }
+            // const signed = txn.getRLPSigned(raw, signature);
+            console.log(r, s, v);
+            // replace empty r,s,v with signature r,s,v
+            raw.pop();
+            raw.pop();
+            raw.pop();
+            v += harmony.chainId * 2 + 8;
+            raw.push(hexlify(v));
+            raw.push(stripZeros(arrayify(r) || []));
+            raw.push(stripZeros(arrayify(s) || []));
+            console.log('v=', v, 's=', s, 'r=', r);
+            const encodedRaw = encode(raw);
+            console.log('encoded raw is:');
+            console.log(encodedRaw);
+            txn.setParams({ ...txn.txParams, rawTransaction: encodedRaw });
 
-            this.log('Response received!');
-            this.log('Full response:');
-            this.log(response.signature.toString('hex'));
+            // Frontend received back the signedTxn and do the followings to Send transaction.
+            txn.observed()
+                .on('transactionHash', (txnHash) => {
+                    console.log('');
+                    console.log('--- hash ---');
+                    console.log('');
+                    console.log(txnHash);
+                    console.log('');
+                })
+                .on('receipt', (receipt) => {
+                    console.log('');
+                    console.log('--- receipt ---');
+                    console.log('');
+                    console.log(receipt);
+                    console.log('');
+                })
+                .on('cxReceipt', (receipt) => {
+                    console.log('');
+                    console.log('--- cxReceipt ---');
+                    console.log('');
+                    console.log(receipt);
+                    console.log('');
+                })
+                .on('error', (error) => {
+                    console.log('');
+                    console.log('--- error ---');
+                    console.log('');
+                    console.log(error);
+                    console.log('');
+                });
+
+            // send the txn, get [Transaction, transactionHash] as result
+
+            const [sentTxn, txnHash] = await txn.sendTransaction();
+
+            // to confirm the result if it is already there
+
+            const confiremdTxn = await sentTxn.confirm(txnHash);
+
+            // if the transactino is cross-shard transaction
+            if (!confiremdTxn.isCrossShard()) {
+                if (confiremdTxn.isConfirmed()) {
+                    console.log('--- Result ---');
+                    console.log('');
+                    console.log('Normal transaction');
+                    console.log(`${txnHash} is confirmed`);
+                    console.log('');
+                    process.exit();
+                }
+            }
+            if (confiremdTxn.isConfirmed() && confiremdTxn.isCxConfirmed()) {
+                console.log('--- Result ---');
+                console.log('');
+                console.log('Cross-Shard transaction');
+                console.log(`${txnHash} is confirmed`);
+                console.log('');
+                process.exit();
+            }
         },
         async signStake() {
             this.deviceLog = [];
@@ -154,11 +278,6 @@ export default {
             // Given a transport (U2F/HIF/WebUSB) it is possible instantiate the app
             const transport = await this.getTransport();
             const app = new HarmonyApp(transport);
-
-            // raw staking packet generated from go-CLI
-            // ./hmy staking delegate --delegator one1q6gkzcap0uruuu8r6sldxuu47pd4ww9w9t7tg6 \
-            // --validator one15l3pj0v9a8gfkdatd5hpj029kvc4mlr6r5djmg \
-            // --gas-price 2  --amount 12345 --passphrase "harmony-one" --ledger \
 
             const message = 'f9017580f901649406916163a17f07ce70e3d43ed37395f05b5738aef87d966861726d6f6e79207374616b696e67206c6564676572907374616b696e67206964656e746974798b6861726d6f6e792e6f6e65b840636f6e746163742020206173646661736473646661207364662061736466617364667361646673616466617364666173646661736466736466736466617364668664657461696cdcc8872bb2c8eabcc000c988b37ecc7904e70000c887b1a2bc2ec50000894136fa8e3b9aec000089bb59a27953c6000000f893b05eb1eec590b2a763da7454b49c13e331b41816853d1b70a7868989dbdf63b450339983cd3020c974f4fc23e2a4475116b05eb1eec590b2a763da7454b49c13e331b41816853d1b70a7868989dbdf63b450339983cd3020c974f4fc23e2a4475116b05eb1eec590b2a763da7454b49c13e331b41816853d1b70a7868989dbdf63b450339983cd3020c974f4fc23e2a44751168942e530adfce0080000808504a817c800825208028080';
             this.log('Start signing');
