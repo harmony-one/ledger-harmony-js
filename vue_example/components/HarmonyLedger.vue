@@ -187,9 +187,7 @@ export default {
             });
 
             const [unsignedRawTransaction, raw] = txn.getRLPUnsigned();
-            console.log(unsignedRawTransaction);
             response = await app.signTx(unsignedRawTransaction);
-            console.log('signature = ', response.signature.toString('hex'));
             const bytes = response.signature;
             const r = hexlify(bytes.slice(0, 32));
             const s = hexlify(bytes.slice(32, 64));
@@ -198,7 +196,6 @@ export default {
                 v = 27 + (v % 2);
             }
             // const signed = txn.getRLPSigned(raw, signature);
-            console.log(r, s, v);
             // replace empty r,s,v with signature r,s,v
             raw.pop();
             raw.pop();
@@ -207,10 +204,8 @@ export default {
             raw.push(hexlify(v));
             raw.push(stripZeros(arrayify(r) || []));
             raw.push(stripZeros(arrayify(s) || []));
-            console.log('v=', v, 's=', s, 'r=', r);
+
             const encodedRaw = encode(raw);
-            console.log('encoded raw is:');
-            console.log(encodedRaw);
             txn.setParams({ ...txn.txParams, rawTransaction: encodedRaw });
 
             // Frontend received back the signedTxn and do the followings to Send transaction.
@@ -220,6 +215,8 @@ export default {
                     console.log('--- hash ---');
                     console.log('');
                     console.log(txnHash);
+                    this.log('txHash = ');
+                    this.log(txnHash.toString());
                     console.log('');
                 })
                 .on('receipt', (receipt) => {
@@ -241,6 +238,7 @@ export default {
                     console.log('--- error ---');
                     console.log('');
                     console.log(error);
+                    this.log('error = ', error.toString());
                     console.log('');
                 });
 
