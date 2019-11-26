@@ -31,7 +31,11 @@
     </button>
 
     <button @click="signStake">
-      Sign Example StakeTx
+      Sign Example CreateValidator
+    </button>
+
+    <button @click="signDelegate">
+      Sign Example Delegate
     </button>
     <!--
         Commands
@@ -58,6 +62,7 @@ const { Harmony } = require('@harmony-js/core');
 const {
     StakingTransaction,
     CreateValidator,
+    Delegate,
     Description,
     CommissionRate,
     Decimal,
@@ -297,6 +302,92 @@ export default {
                 '',
             );
 
+            const signedStakingTxn = await app.signStakingTransaction(stakingTxn, harmony.chainId,
+                shardId, harmony.messenger);
+
+            console.log(signedStakingTxn);
+            signedStakingTxn.observed()
+                .on('transactionHash', (txnHash) => {
+                    console.log('');
+                    console.log('--- hash ---');
+                    console.log('');
+                    console.log(txnHash);
+                    console.log('');
+                })
+                .on('receipt', (receipt) => {
+                    console.log('');
+                    console.log('--- receipt ---');
+                    console.log('');
+                    console.log(receipt);
+                    console.log('');
+                })
+                .on('cxReceipt', (receipt) => {
+                    console.log('');
+                    console.log('--- cxReceipt ---');
+                    console.log('');
+                    console.log(receipt);
+                    console.log('');
+                })
+                .on('error', (error) => {
+                    console.log('');
+                    console.log('--- error ---');
+                    console.log('');
+                    console.log(error);
+                    console.log('');
+                });
+
+            signedStakingTxn.setMessenger(harmony.messenger);
+            const [sentTxn, txnHash] = await signedStakingTxn.sendTransaction();
+            const confiremdTxn = await sentTxn.confirm(txnHash);
+
+            // if the transactino is cross-shard transaction
+            if (!confiremdTxn.isCrossShard()) {
+                if (confiremdTxn.isConfirmed()) {
+                    console.log('--- Result ---');
+                    console.log('');
+                    console.log('Normal transaction');
+                    console.log(`${txnHash} is confirmed`);
+                    console.log('');
+                    process.exit();
+                }
+            }
+            if (confiremdTxn.isConfirmed() && confiremdTxn.isCxConfirmed()) {
+                console.log('--- Result ---');
+                console.log('');
+                console.log('Cross-Shard transaction');
+                console.log(`${txnHash} is confirmed`);
+                console.log('');
+                process.exit();
+            }
+        },
+
+        async signDelegate() {
+            this.deviceLog = [];
+            const transport = await this.getTransport();
+            const app = new HarmonyApp(transport);
+
+            const shardStructure = await harmony.blockchain.getShardingStructure();
+            harmony.shardingStructures(shardStructure.result);
+
+            const delegateMsg = new Delegate(
+                'one12fuf7x9rgtdgqg7vgq0962c556m3p7afsxgvll', // from delegate command.
+                'one1pdv9lrdwl0rg5vglh4xtyrv3wjk3wsqket7zxy', // fd416cb87dcf8ed187e85545d7734a192fc8e976f5b540e9e21e896ec2bc25c3
+                '0xde0b6b3a7640000', // 0x56BC75E2D63100000
+            );
+
+            const stakingTxn = new StakingTransaction(
+                '0x2',
+                delegateMsg,
+                '0x2',
+                '0x',
+                '0x0927c0',
+                2,
+                2,
+                '',
+                '',
+            );
+
+            const shardId = 0;
             const signedStakingTxn = await app.signStakingTransaction(stakingTxn, harmony.chainId,
                 shardId, harmony.messenger);
 
