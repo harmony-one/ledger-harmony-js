@@ -16,6 +16,10 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
  */
+import {
+    arrayify, hexlify, stripZeros, encode,
+} from '@harmony-js/crypto';
+
 const { hexToNumber } = require('@harmony-js/utils');
 
 const CLA = 0xE0;
@@ -166,5 +170,93 @@ export default class HarmonyApp {
             throw nonce.error.message;
         }
         return Number.parseInt(hexToNumber(nonce.result), 10);
+    }
+
+    async signTransaction(txn, chainId, shardId, messenger) {
+        // get public address of ledger account
+        let response = await this.publicKey(true);
+        if (response.return_code !== 0x9000) {
+            this.log(`Error [${response.return_code}] ${response.error_message}`);
+            return;
+        }
+
+        // get nonce for the current account/shardID and set the transaction nonce
+        const address = response.one_address.toString();
+        const accountNonce = await HarmonyApp.getAccountShardNonce(
+            address, shardId, messenger,
+        );
+        txn.setParams({ ...txn.txParams, nonce: accountNonce });
+
+        // sign RLP encoded raw transaction using ledger private key
+        const [unsignedRawTransaction, raw] = txn.getRLPUnsigned();
+        response = await this.signTx(unsignedRawTransaction);
+
+        // update the signature r,s,v field in transaction
+        const bytes = response.signature;
+        const r = hexlify(bytes.slice(0, 32));
+        const s = hexlify(bytes.slice(32, 64));
+        let v = bytes[64];
+        if (v !== 27 && v !== 28) {
+            v = 27 + (v % 2);
+        }
+
+        // replace empty r,s,v with signature r,s,v
+        raw.pop();
+        raw.pop();
+        raw.pop();
+
+        v += chainId * 2 + 8;
+        raw.push(hexlify(v));
+        raw.push(stripZeros(arrayify(r) || []));
+        raw.push(stripZeros(arrayify(s) || []));
+
+        const encodedRaw = encode(raw);
+        txn.setParams({ ...txn.txParams, rawTransaction: encodedRaw });
+
+        return txn;
+    }
+
+    async signStakingTransaction(stakingTxn, chainId, shardId, messenger) {
+        // get public address of ledger account
+        let response = await this.publicKey(true);
+        if (response.return_code !== 0x9000) {
+            this.log(`Error [${response.return_code}] ${response.error_message}`);
+            return;
+        }
+
+        // get nonce for the current account/shardID and set the transaction nonce
+        const address = response.one_address.toString();
+        const accountNonce = await HarmonyApp.getAccountShardNonce(
+            address, shardId, messenger,
+        );
+
+        stakingTxn.setNonce(accountNonce);
+        stakingTxn.setFromAddress(address);
+
+        const [unsignedRawTransaction, raw] = stakingTxn.encode();
+        stakingTxn.setUnsigned(unsignedRawTransaction);
+
+        response = await this.signStake(unsignedRawTransaction);
+
+        const bytes = response.signature;
+        const r = hexlify(bytes.slice(0, 32));
+        const s = hexlify(bytes.slice(32, 64));
+        let v = bytes[64];
+        if (v !== 27 && v !== 28) {
+            v = 27 + (v % 2);
+        }
+
+        // replace empty r,s,v with signature r,s,v
+        raw.pop();
+        raw.pop();
+        raw.pop();
+        v += chainId * 2 + 8;
+        raw.push(hexlify(v));
+        raw.push(stripZeros(arrayify(r) || []));
+        raw.push(stripZeros(arrayify(s) || []));
+        const encodedRaw = encode(raw);
+        stakingTxn.setRawTransaction(encodedRaw);
+
+        return stakingTxn;
     }
 }

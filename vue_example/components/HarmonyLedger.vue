@@ -286,8 +286,62 @@ export default {
                 from: 'one1q6gkzcap0uruuu8r6sldxuu47pd4ww9w9t7tg6',
             });
 
-            console.log(stakingTxn.encode());
-            console.log(app, stakingTxn, shardId);
+            const signedStakingTxn = await app.signStakingTransaction(stakingTxn, harmony.chainId,
+                shardId, harmony.messenger);
+
+            console.log(signedStakingTxn);
+            signedStakingTxn.observed()
+                .on('transactionHash', (txnHash) => {
+                    console.log('');
+                    console.log('--- hash ---');
+                    console.log('');
+                    console.log(txnHash);
+                    console.log('');
+                })
+                .on('receipt', (receipt) => {
+                    console.log('');
+                    console.log('--- receipt ---');
+                    console.log('');
+                    console.log(receipt);
+                    console.log('');
+                })
+                .on('cxReceipt', (receipt) => {
+                    console.log('');
+                    console.log('--- cxReceipt ---');
+                    console.log('');
+                    console.log(receipt);
+                    console.log('');
+                })
+                .on('error', (error) => {
+                    console.log('');
+                    console.log('--- error ---');
+                    console.log('');
+                    console.log(error);
+                    console.log('');
+                });
+
+            const [sentTxn, txnHash] = await signedStakingTxn.sendTransaction();
+            const confiremdTxn = await sentTxn.confirm(txnHash);
+
+            // if the transactino is cross-shard transaction
+            if (!confiremdTxn.isCrossShard()) {
+                if (confiremdTxn.isConfirmed()) {
+                    console.log('--- Result ---');
+                    console.log('');
+                    console.log('Normal transaction');
+                    console.log(`${txnHash} is confirmed`);
+                    console.log('');
+                    process.exit();
+                }
+            }
+            if (confiremdTxn.isConfirmed() && confiremdTxn.isCxConfirmed()) {
+                console.log('--- Result ---');
+                console.log('');
+                console.log('Cross-Shard transaction');
+                console.log(`${txnHash} is confirmed`);
+                console.log('');
+                process.exit();
+            }
         },
     },
 };
