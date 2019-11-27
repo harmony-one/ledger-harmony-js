@@ -51,7 +51,8 @@ function hexToBytes(hex) {
 
 function processErrorResponse(response) {
     return {
-        return_code: response.statusCode,
+        signature: Buffer.from('0x0'),
+        return_code: response,
     };
 }
 
@@ -78,7 +79,7 @@ export default class HarmonyApp {
         try {
             resp = await this.transport.send(CLA, INS.GET_VERSION, 0, 0);
         } catch (err) {
-            processErrorResponse(resp);
+            return processErrorResponse(resp);
         }
         const errorCodeData = resp.slice(-2);
         const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
@@ -101,7 +102,7 @@ export default class HarmonyApp {
                 resp = await this.transport.send(CLA, INS.GET_PUBLIC_KEY, 0, 0);
             }
         } catch (err) {
-            processErrorResponse(resp);
+            return processErrorResponse(resp);
         }
         const errorCodeData = resp.slice(-2);
         const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
@@ -117,7 +118,7 @@ export default class HarmonyApp {
         try {
             resp = await this.transport.send(CLA, INS.SIGN_TX, 0, 0, Buffer.from(p));
         } catch (err) {
-            processErrorResponse(resp);
+            return processErrorResponse(resp);
         }
         const errorCodeData = resp.slice(-2);
         const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
@@ -148,7 +149,7 @@ export default class HarmonyApp {
                 resp = await this.transport.send(CLA, INS.SIGN_STAKING, p1, p2, chunks[i]);
             }
         } catch (err) {
-            processErrorResponse(resp);
+            return processErrorResponse(resp);
         }
         const errorCodeData = resp.slice(-2);
         const returnCode = errorCodeData[0] * 256 + errorCodeData[1];
@@ -226,11 +227,15 @@ export default class HarmonyApp {
 
         // get nonce for the current account/shardID and set the transaction nonce
         const address = response.one_address.toString();
-        const accountNonce = await HarmonyApp.getAccountShardNonce(
+        let accountNonce = await HarmonyApp.getAccountShardNonce(
             address, shardId, messenger,
         );
 
-        stakingTxn.setNonce(accountNonce);
+        // special handling for 0 as accountNonce so that RLP encoding works
+        if (accountNonce === 0) {
+            accountNonce = '0x';
+        }
+
         stakingTxn.setFromAddress(address);
 
         const [unsignedRawTransaction, raw] = stakingTxn.encode();
