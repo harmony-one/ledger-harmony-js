@@ -74,6 +74,7 @@ const {
 const { ChainID, ChainType } = require('@harmony-js/utils');
 
 const URL_TESTNET = 'https://api.s0.b.hmny.io';
+// const URL_DEVNET = 'https://api.s0.pga.hmny.io';
 // const URL_MAINNET = 'https://api.s0.t.hmny.io';
 
 const harmony = new Harmony(
@@ -84,6 +85,7 @@ const harmony = new Harmony(
         chainType: ChainType.Harmony,
         // chainType set to HmyLocal
         chainId: ChainID.HmyTestnet,
+        // chainId: ChainID.HmyPangaea,
     },
 );
 
@@ -382,7 +384,7 @@ export default {
                 '0x2',
                 '0x10',
                 '0x0927c0',
-                2,
+                harmony.chainId,
                 2,
                 '',
                 '',
