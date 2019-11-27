@@ -52,6 +52,7 @@
 </template>
 
 <script>
+/* eslint-disable */
 // eslint-disable-next-line import/no-extraneous-dependencies
 import TransportWebUSB from '@ledgerhq/hw-transport-webusb';
 // eslint-disable-next-line import/no-extraneous-dependencies
@@ -94,7 +95,7 @@ export default {
     data() {
         return {
             deviceLog: [],
-            transportChoice: 'U2F',
+            transportChoice: 'WebUSB',
         };
     },
     computed: {
@@ -174,7 +175,6 @@ export default {
             const transport = await this.getTransport();
             const app = new HarmonyApp(transport);
 
-            const shardId = 0;
             const txn = harmony.transactions.newTx({
                 //  token send to
                 to: 'one1sl6hku7wxgxnhajrc0a96p6zpea6qr0p0sqajk',
@@ -184,10 +184,11 @@ export default {
                 // gas limit, you can use string
                 gasLimit: '210000',
                 shardID: shardId,
-                toShardID: 1,
+                toShardID: 0,
                 gasPrice: new harmony.utils.Unit('100').asGwei().toWei(),
             });
 
+            const shardId = 0;
             const signedTxn = await app.signTransaction(txn,
                 harmony.chainId, shardId, harmony.messenger);
 
@@ -370,7 +371,7 @@ export default {
             harmony.shardingStructures(shardStructure.result);
 
             const delegateMsg = new Delegate(
-                'one12fuf7x9rgtdgqg7vgq0962c556m3p7afsxgvll', // from delegate command.
+                'one1q6gkzcap0uruuu8r6sldxuu47pd4ww9w9t7tg6', // from delegate command.
                 'one1pdv9lrdwl0rg5vglh4xtyrv3wjk3wsqket7zxy', // fd416cb87dcf8ed187e85545d7734a192fc8e976f5b540e9e21e896ec2bc25c3
                 '0xde0b6b3a7640000', // 0x56BC75E2D63100000
             );
@@ -379,7 +380,7 @@ export default {
                 '0x2',
                 delegateMsg,
                 '0x2',
-                '0x',
+                '0x10',
                 '0x0927c0',
                 2,
                 2,
@@ -389,7 +390,7 @@ export default {
 
             const shardId = 0;
             const signedStakingTxn = await app.signStakingTransaction(stakingTxn, harmony.chainId,
-                shardId, harmony.messenger);
+                    shardId, harmony.messenger);
 
             console.log(signedStakingTxn);
             signedStakingTxn.observed()
@@ -398,6 +399,8 @@ export default {
                     console.log('--- hash ---');
                     console.log('');
                     console.log(txnHash);
+                    this.log('txHash = ');
+                    this.log(txnHash.toString());
                     console.log('');
                 })
                 .on('receipt', (receipt) => {
@@ -424,6 +427,7 @@ export default {
 
             signedStakingTxn.setMessenger(harmony.messenger);
             const [sentTxn, txnHash] = await signedStakingTxn.sendTransaction();
+            console.log(sentTxn);
             const confiremdTxn = await sentTxn.confirm(txnHash);
 
             // if the transactino is cross-shard transaction
